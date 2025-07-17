@@ -8,16 +8,18 @@ import {
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
+import Constants from 'expo-constants';
+
 console.log("--- DEBUG: 1. Iniciando firebaseConfig.js ---");
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA-bZTyi6nenuNg4bTpRqCBBKFSDnnKvN0",
-  authDomain: "eimosso.firebaseapp.com",
-  projectId: "eimosso",
-  storageBucket: "eimosso.firebasestorage.app",
-  messagingSenderId: "885302787667",
-  appId: "1:885302787667:web:7cd619671c5cdd5224d0a6",
-  measurementId: "G-9CY19RQ9YR"
+  apiKey: process.env.EXPO_PUBLIC_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_measurementId
 };
 
 try {
