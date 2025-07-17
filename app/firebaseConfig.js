@@ -1,10 +1,15 @@
-// Importa as funções necessárias do SDK do Firebase que você acabou de instalar.
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeApp } from 'firebase/app';
+import { Platform } from 'react-native';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  initializeAuth,
+  getReactNativePersistence,
+  indexedDBLocalPersistence,
+} from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
-// Objeto de configuração do seu projeto Firebase.
-// Estes dados são as "chaves" que permitem que seu app se conecte ao seu backend no Firebase.
+console.log("--- DEBUG: 1. Iniciando firebaseConfig.js ---");
+
 const firebaseConfig = {
   apiKey: "AIzaSyA-bZTyi6nenuNg4bTpRqCBBKFSDnnKvN0",
   authDomain: "eimosso.firebaseapp.com",
@@ -15,12 +20,24 @@ const firebaseConfig = {
   measurementId: "G-9CY19RQ9YR"
 };
 
-// Inicializa o app Firebase com as configurações fornecidas.
-// Isso estabelece a conexão principal com o seu projeto Firebase.
-const app = initializeApp(firebaseConfig);
+try {
+  const app = initializeApp(firebaseConfig);
+  console.log("--- DEBUG: 2. Firebase App inicializado com sucesso. ---");
 
-// Obtém e exporta as instâncias dos serviços que vamos usar.
-// É como pegar "atalhos" para a Autenticação e o Banco de Dados.
-// Vamos importar esses atalhos em outros arquivos para usar as funcionalidades.
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+  const auth = initializeAuth(app, {
+    persistence: Platform.OS === 'web'
+      ? indexedDBLocalPersistence
+      : getReactNativePersistence(ReactNativeAsyncStorage),
+  });
+  console.log("--- DEBUG: 3. Firebase Auth inicializado com sucesso. ---");
+
+  const db = getFirestore(app);
+  console.log("--- DEBUG: 4. Firestore inicializado com sucesso. ---");
+
+  // Exporta as instâncias
+  module.exports = { auth, db };
+  console.log("--- DEBUG: 5. Configurações exportadas com sucesso. ---");
+
+} catch (error) {
+  console.error("--- DEBUG: ERRO FATAL no firebaseConfig.js ---", error);
+}
