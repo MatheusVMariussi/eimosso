@@ -12,8 +12,7 @@ export default function Signup() {
     e.preventDefault();
     try {
       await createUserWithEmailAndPassword(auth, email, password);
-      alert('Conta criada com sucesso! Você será redirecionado para o painel.');
-      navigate('/'); // Redireciona para a página principal (Dashboard) após o sucesso
+      navigate('/criar-bar'); // Redireciona para a nova página
     } catch (error) {
       console.error("Erro no cadastro:", error);
       alert(error.message);

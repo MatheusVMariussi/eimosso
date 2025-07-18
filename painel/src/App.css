@@ -40,3 +40,61 @@
 .read-the-docs {
   color: #888;
 }
+
+.menu-item-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.delete-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.delete-button:hover {
+  background-color: #c82333;
+}
+
+/* Adicione no final do arquivo */
+.inline-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.inline-form input {
+  flex-grow: 1;
+}
+.menu-selection-list {
+  margin-top: 20px;
+}
+.menu-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.menu-list-item.selected {
+  border-color: #007bff;
+  background-color: #f0f8ff;
+}
+
+.menu-list-item.active {
+  border-color: #28a745; /* Borda verde */
+  background-color: #e9f7ef; /* Fundo verde claro */
+}
+
+.menu-list-item.active button:first-of-type {
+  background-color: #28a745;
+  color: white;
+  cursor: default;
+}
