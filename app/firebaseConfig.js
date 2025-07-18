@@ -8,7 +8,6 @@ import {
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-import Constants from 'expo-constants';
 
 console.log("--- DEBUG: 1. Iniciando firebaseConfig.js ---");
 

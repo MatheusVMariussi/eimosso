@@ -11,5 +11,5 @@ export default function AppLayout() {
   }
 
   // Se houver usuário, mostra o conteúdo desta seção.
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return <Stack />;
 }
