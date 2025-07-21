@@ -1,9 +1,9 @@
 import { Text, View, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator } from "react-native";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../../context/AuthContext"; // Caminho relativo
 import { signOut } from "firebase/auth";
-import { auth, db } from "../../firebaseConfig"; // Importamos o 'db' também
-import { collection, getDocs } from "firebase/firestore"; // Funções para buscar dados
-import React, { useState, useEffect } from 'react'; // Hooks para estado e ciclo de vida
+import { auth, db } from "../../../firebaseConfig"; // Caminho relativo
+import { collection, getDocs } from "firebase/firestore";
+import React, { useState, useEffect } from 'react';
 import { Link } from "expo-router";
 
 // Definimos um tipo para nossos objetos de bar, para organização
@@ -13,46 +13,40 @@ interface Bar {
   endereco: string;
 }
 
-export default function AppIndex() {
+// Renomeei o componente para refletir sua função (opcional, mas boa prática)
+export default function BuscaScreen() {
   const { user } = useAuth();
   
-  // Novos estados: um para o carregamento e um para guardar a lista de bares
   const [bares, setBares] = useState<Bar[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // useEffect é um hook que executa uma função quando o componente "monta" (aparece na tela)
   useEffect(() => {
-    // Função assíncrona para buscar os dados no Firestore
     const fetchBares = async () => {
       try {
-        // Aponta para a nossa coleção "bares"
         const baresCollectionRef = collection(db, 'bares');
-        // getDocs busca todos os documentos da coleção
         const querySnapshot = await getDocs(baresCollectionRef);
         
-        // Mapeia os resultados para o formato que queremos (adicionando o ID do documento)
         const baresList = querySnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         })) as Bar[];
 
-        setBares(baresList); // Salva a lista de bares no nosso estado
+        setBares(baresList);
       } catch (error) {
         console.error("Erro ao buscar bares: ", error);
         alert("Não foi possível carregar os bares.");
       } finally {
-        setLoading(false); // Finaliza o carregamento, independentemente de sucesso ou erro
+        setLoading(false);
       }
     };
 
-    fetchBares(); // Chama a função de busca
-  }, []); // O array vazio [] significa que este useEffect executa apenas uma vez
+    fetchBares();
+  }, []);
 
   const handleLogout = async () => {
     await signOut(auth);
   };
 
-  // Se estiver carregando, mostra uma "bolinha girando"
   if (loading) {
     return (
       <View style={styles.container}>
@@ -61,19 +55,13 @@ export default function AppIndex() {
     );
   }
 
-  // Se não estiver carregando, mostra a lista
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Bares Disponíveis</Text>
-      
-      {/* FlatList é o componente do React Native para renderizar listas com performance */}
+      {/* O título agora vem do layout da pilha, então podemos remover este */}
       <FlatList
-        data={bares} // Os dados que a lista vai usar
-        keyExtractor={(item) => item.id} // Uma chave única para cada item
+        data={bares}
+        keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          // Envolvemos nosso item com o componente Link.
-          // O 'href' é construído dinamicamente com o ID do bar.
-          // Ex: /bar/1osSn41jVWZIMBX5yait
           <Link href={`/bar/${item.id}`} asChild>
             <TouchableOpacity style={styles.barItem}>
               <Text style={styles.barName}>{item.nome}</Text>
@@ -91,12 +79,10 @@ export default function AppIndex() {
   );
 }
 
-// Estilos atualizados para a lista
+// Estilos
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 50, // Adiciona espaço no topo
-    paddingHorizontal: 20,
     backgroundColor: '#fff',
   },
   title: {
@@ -104,11 +90,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
+    paddingTop: 20,
   },
   barItem: {
     backgroundColor: '#f9f9f9',
     padding: 20,
     marginVertical: 8,
+    marginHorizontal: 16,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#eee',
@@ -128,6 +116,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginVertical: 20,
+    marginHorizontal: 16,
   },
   buttonText: {
     color: 'white',
