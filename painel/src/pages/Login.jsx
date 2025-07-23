@@ -1,22 +1,19 @@
 import React, { useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
-import { Link, useNavigate } from 'react-router-dom';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
+      // Apenas tenta fazer o login. Nenhuma navegação aqui.
       await signInWithEmailAndPassword(auth, email, password);
-      alert('Login efetuado com sucesso!');
-      navigate('/'); // Redireciona para o Dashboard após o login
     } catch (error) {
-      console.error("Erro no login:", error);
       alert('Email ou senha inválidos.');
+      console.error("Erro no login:", error);
     }
   };
 
@@ -44,9 +41,6 @@ export default function Login() {
         </div>
         <button type="submit">Entrar</button>
       </form>
-      <p>
-        Não tem uma conta? <Link to="/signup">Cadastre-se</Link>
-      </p>
     </div>
   );
 }

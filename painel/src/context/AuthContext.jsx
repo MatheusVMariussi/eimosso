@@ -1,37 +1,47 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../firebaseConfig';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../firebaseConfig';
 
 const AuthContext = createContext();
 
-// Hook para usar o contexto facilmente
 export function useAuth() {
   return useContext(AuthContext);
 }
 
-// O componente Provedor
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true); // Estado para saber se ainda estamos verificando
+  const [currentUserProfile, setCurrentUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // O 'ouvinte' do Firebase que nos diz se o usuário está logado ou não
-    const unsubscribe = onAuthStateChanged(auth, user => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      if (user) {
+        const userDocRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists()) {
+          setCurrentUserProfile(docSnap.data());
+        } else {
+          setCurrentUserProfile({ role: 'client' });
+        }
+      } else {
+        setCurrentUserProfile(null);
+      }
       setLoading(false);
     });
-
-    return unsubscribe; // Limpa o ouvinte ao desmontar
+    return () => unsubscribe();
   }, []);
 
   const value = {
     currentUser,
+    currentUserProfile,
+    loading,
   };
 
-  // Não renderiza nada até que a verificação inicial do Firebase termine
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }

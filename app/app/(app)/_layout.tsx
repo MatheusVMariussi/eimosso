@@ -12,12 +12,16 @@ export default function AppLayout() {
     <View style={{ flex: 1 }}>
       <Stack>
         <Stack.Screen 
-          name="(tabs)" // Esta tela aponta para o nosso layout de abas
+          name="(tabs)" // Aponta para o layout que controla a barra de abas
           options={{ headerShown: false }} 
         />
         <Stack.Screen 
-          name="bar/[id]" // Esta é a nossa tela de detalhes
+          name="bar/[id]" // Tela de detalhes do bar
           options={{ presentation: 'modal', title: 'Detalhes do Bar' }} 
+        />
+        <Stack.Screen 
+          name="chat/[id]" // Tela de uma conversa
+          options={{ title: 'Chat' }} // Abre como uma tela normal, por cima das abas
         />
       </Stack>
       <CartSummaryBar />

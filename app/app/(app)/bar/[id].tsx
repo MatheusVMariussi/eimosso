@@ -1,11 +1,12 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ImageBackground } from 'react-native';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where, addDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
 import { useOrder } from '@/context/OrderContext';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import ItemDetailModal from '@/components/ItemDetailModal';
+import { useAuth } from '@/context/AuthContext';
 
 // Interfaces
 interface MenuItem {
@@ -15,7 +16,6 @@ interface MenuItem {
   descricao: string;
   disponivel: boolean;
 }
-
 interface Bar {
   id: string;
   nome: string;
@@ -32,8 +32,10 @@ export default function BarDetailsScreen() {
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
 
   const { selectTable, scannedTable, activeBar } = useOrder();
+  const { user: currentUser } = useAuth();
+  const router = useRouter();
 
-  // --- LÓGICA DE BUSCA QUE ESTAVA FALTANDO ---
+  // Busca os dados do bar e seu cardápio ativo
   useEffect(() => {
     const fetchBarAndActiveMenu = async () => {
       if (!id) {
@@ -69,13 +71,14 @@ export default function BarDetailsScreen() {
       } catch (error) {
         console.error("Erro ao buscar dados:", error);
       } finally {
-        setLoading(false); // Garante que o loading termine
+        setLoading(false);
       }
     };
 
     fetchBarAndActiveMenu();
   }, [id]);
 
+  // Abre o modal de detalhes do item
   const openModalForItem = (item: MenuItem) => {
     if (!scannedTable || activeBar !== id) {
       alert("Para ver os detalhes de um item, primeiro escaneie o QR Code da sua mesa!");
@@ -83,6 +86,38 @@ export default function BarDetailsScreen() {
     }
     setSelectedItem(item);
     setModalVisible(true);
+  };
+
+  // Inicia uma nova conversa ou navega para uma existente
+  const handleInitiateChat = async () => {
+    if (!currentUser || !bar) return;
+    try {
+      const conversasRef = collection(db, 'conversas');
+      const q = query(conversasRef, 
+        where("userId", "==", currentUser.uid),
+        where("barId", "==", bar.id)
+      );
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const conversationId = querySnapshot.docs[0].id;
+        router.push(`/chat/${conversationId}`);
+      } else {
+        const newConversation = {
+          userId: currentUser.uid,
+          userName: currentUser.displayName || currentUser.email,
+          barId: bar.id,
+          barName: bar.nome,
+          lastMessage: "Conversa iniciada...",
+          timestamp: new Date(),
+        };
+        const docRef = await addDoc(conversasRef, newConversation);
+        router.push(`/chat/${docRef.id}`);
+      }
+    } catch (error) {
+      console.error("Erro ao iniciar chat:", error);
+      alert("Não foi possível iniciar a conversa.");
+    }
   };
 
   if (loading) {
@@ -108,14 +143,14 @@ export default function BarDetailsScreen() {
           <Text style={styles.address}>{bar?.endereco}</Text>
           <TouchableOpacity 
             style={styles.scanButton} 
-            onPress={() => {
-              console.log("Botão de simular scan foi clicado!");
-              selectTable(id, '15');
-            }}
+            onPress={() => selectTable(id, '15')}
           >
             <Text style={styles.buttonText}>
               {scannedTable && activeBar === id ? `Você está na Mesa 15` : 'Simular Scan da Mesa'}
             </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.chatButton} onPress={handleInitiateChat}>
+            <Text style={styles.buttonText}>Fale com o Bar</Text>
           </TouchableOpacity>
           <Text style={styles.menuTitle}>Cardápio Ativo</Text>
 
@@ -146,26 +181,19 @@ export default function BarDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-    headerImage: { width: '100%', height: 180 },
-    headerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', padding: 16 },
-    headerTitle: { fontSize: 28, fontWeight: 'bold', color: 'white' },
-    contentContainer: { paddingVertical: 24, backgroundColor: '#fff', minHeight: '100%' },
-    address: { fontSize: 16, color: 'gray', textAlign: 'center', marginBottom: 20, paddingHorizontal: 16 },
-    scanButton: { backgroundColor: '#007BFF', padding: 15, borderRadius: 8, alignItems: 'center', marginHorizontal: 16, marginBottom: 20 },
-    buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
-    menuTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 10, paddingHorizontal: 16 },
-    menuItem: {
-        paddingVertical: 20,
-        paddingHorizontal: 16,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0'
-    },
-    menuItemInfo: { flex: 1, marginRight: 16 },
-    itemName: { fontSize: 16, fontWeight: '600' },
-    itemDescription: { fontSize: 14, color: '#666', marginTop: 4 },
-    itemPrice: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-    emptyText: { textAlign: 'center', marginTop: 20, color: 'gray', paddingHorizontal: 16 }
+  headerImage: { width: '100%', height: 180 },
+  headerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', padding: 16 },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: 'white' },
+  contentContainer: { paddingVertical: 24, backgroundColor: '#fff', minHeight: '100%' },
+  address: { fontSize: 16, color: 'gray', textAlign: 'center', marginBottom: 20, paddingHorizontal: 16 },
+  scanButton: { backgroundColor: '#007BFF', padding: 15, borderRadius: 8, alignItems: 'center', marginHorizontal: 16, marginBottom: 10 },
+  chatButton: { backgroundColor: '#17a2b8', padding: 15, borderRadius: 8, alignItems: 'center', marginHorizontal: 16, marginBottom: 20 },
+  buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+  menuTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 10, paddingHorizontal: 16 },
+  menuItem: { paddingVertical: 20, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#f0f0f0'},
+  menuItemInfo: { flex: 1, marginRight: 16 },
+  itemName: { fontSize: 16, fontWeight: '600' },
+  itemDescription: { fontSize: 14, color: '#666', marginTop: 4 },
+  itemPrice: { fontSize: 16, fontWeight: 'bold', color: '#333' },
+  emptyText: { textAlign: 'center', marginTop: 20, color: 'gray', paddingHorizontal: 16 },
 });

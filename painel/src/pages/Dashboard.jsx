@@ -1,70 +1,107 @@
 import React, { useState, useEffect } from 'react';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../firebaseConfig';
-import { collection, addDoc, getDocs, query, where, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, doc, updateDoc, onSnapshot, serverTimestamp, orderBy } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import ItemManager from '../components/ItemManager';
 
-// Vamos manter o componente do cardápio separado para organização
-// (Por enquanto, ele ficará neste arquivo, mas poderíamos movê-lo depois)
-function MenuManager({ bar }) {
-    // ... (Aqui virá toda a lógica de itens do cardápio)
-    return <div>Gerenciador de Itens em breve...</div>
-}
+// Importando nossos componentes organizados
+import BarProfileCard from '../components/dashboard/BarProfileCard';
+import HorariosManager from '../components/dashboard/HorariosManager';
+import MenuManager from '../components/dashboard/MenuManager';
+import ItemManager from '../components/ItemManager';
+import PasswordManager from '../components/dashboard/PasswordManager';
+import ChatManager from '../components/dashboard/ChatManager';
+
+const initialHorarios = {
+    segunda: null, terca: null, quarta: null, quinta: null, sexta: null, sabado: null, domingo: null,
+};
 
 export default function Dashboard() {
     const { currentUser } = useAuth();
     const navigate = useNavigate();
 
+    // Estados
     const [bar, setBar] = useState(null);
     const [loading, setLoading] = useState(true);
-
-    // ---> NOVOS ESTADOS PARA GERENCIAR MÚLTIPLOS CARDÁPIOS <---
     const [menus, setMenus] = useState([]);
-    const [selectedMenuId, setSelectedMenuId] = useState(null); // Qual cardápio estamos vendo/editando
-    const [nomeNovoMenu, setNomeNovoMenu] = useState(''); // Para o formulário de criar novo cardápio
+    const [selectedMenuId, setSelectedMenuId] = useState(null);
+    const [nomeNovoMenu, setNomeNovoMenu] = useState('');
+    const [horarios, setHorarios] = useState(initialHorarios);
+    const [conversations, setConversations] = useState([]);
+    const [selectedConversation, setSelectedConversation] = useState(null);
+    const [messages, setMessages] = useState([]);
+    const [newMessage, setNewMessage] = useState('');
 
-    // Busca os dados do bar e seus cardápios
+    const [activeView, setActiveView] = useState('profile'); // 'profile' será a nossa visão inicial
+
+    // Efeito para buscar os dados principais do bar (onSnapshot para tempo real)
     useEffect(() => {
-        const fetchData = async () => {
-            if (!currentUser) return;
-            // ... (Lógica para buscar o bar do usuário, sem alterações)
-            const baresRef = collection(db, "bares");
-            const q = query(baresRef, where("ownerId", "==", currentUser.uid));
-            const querySnapshot = await getDocs(q);
-
+        if (!currentUser) return;
+        const baresRef = collection(db, "bares");
+        const q = query(baresRef, where("ownerId", "==", currentUser.uid));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
             if (querySnapshot.empty) {
                 navigate('/criar-bar');
+                setLoading(false);
                 return;
             }
-
             const barDoc = querySnapshot.docs[0];
             const barData = { id: barDoc.id, ...barDoc.data() };
             setBar(barData);
-
-            // ---> BUSCA OS CARDÁPIOS (MENUS) DESTE BAR <---
-            const menusRef = collection(db, 'bares', barData.id, 'menus');
-            const menusSnapshot = await getDocs(menusRef);
-            const menusList = menusSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setMenus(menusList);
-
+            if (barData.horarios) {
+                setHorarios(prev => ({ ...initialHorarios, ...barData.horarios }));
+            }
             setLoading(false);
-        };
-        fetchData();
+        });
+        return () => unsubscribe();
     }, [currentUser, navigate]);
 
-    // ---> NOVA FUNÇÃO PARA CRIAR UM CARDÁPIO <---
+    // Efeito para buscar os cardápios (menus)
+    useEffect(() => {
+        if (!bar) return;
+        const menusRef = collection(db, 'bares', bar.id, 'menus');
+        const unsubscribe = onSnapshot(menusRef, (snapshot) => {
+            setMenus(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        });
+        return () => unsubscribe();
+    }, [bar]);
+
+    // Efeito para buscar as conversas
+    useEffect(() => {
+        if (!bar) return;
+        const q = query(collection(db, "conversas"), where("barId", "==", bar.id), orderBy("timestamp", "desc"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setConversations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        });
+        return () => unsubscribe();
+    }, [bar]);
+
+    // Efeito para buscar as mensagens da conversa selecionada
+    useEffect(() => {
+        if (!selectedConversation) {
+            setMessages([]);
+            return;
+        }
+        const q = query(collection(db, 'conversas', selectedConversation.id, 'messages'), orderBy('timestamp', 'asc'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        });
+        return () => unsubscribe();
+    }, [selectedConversation]);
+
+    // --- Funções Handler Completas ---
+
+    const handleLogout = async () => {
+        await signOut(auth);
+    };
+
     const handleCreateMenu = async (e) => {
         e.preventDefault();
-        if (!nomeNovoMenu) return;
-
+        if (!nomeNovoMenu || !bar) return;
         try {
             const menusRef = collection(db, 'bares', bar.id, 'menus');
-            const docRef = await addDoc(menusRef, { nomeMenu: nomeNovoMenu });
-            
-            // Atualiza a lista na tela
-            setMenus([...menus, { id: docRef.id, nomeMenu: nomeNovoMenu }]);
+            await addDoc(menusRef, { nomeMenu: nomeNovoMenu });
             setNomeNovoMenu('');
             alert(`Cardápio "${nomeNovoMenu}" criado com sucesso!`);
         } catch (error) {
@@ -72,27 +109,33 @@ export default function Dashboard() {
         }
     };
 
-    const handleLogout = async () => {
-        await signOut(auth);
+    const handleSetActiveMenu = async (menuId) => {
+        if (!bar) return;
+        try {
+            const barDocRef = doc(db, 'bares', bar.id);
+            await updateDoc(barDocRef, { activeMenuId: menuId });
+            setBar({ ...bar, activeMenuId: menuId }); // Atualiza o estado local
+            alert('Cardápio ativado com sucesso!');
+        } catch (error) {
+            console.error("Erro ao ativar cardápio:", error);
+        }
     };
 
-    const handleSetActiveMenu = async (menuId) => {
-      if (!bar) return;
-      try {
-        // Cria a referência para o documento principal do bar
-        const barDocRef = doc(db, 'bares', bar.id);
-        // Atualiza o campo 'activeMenuId' com o ID do cardápio selecionado
-        await updateDoc(barDocRef, {
-          activeMenuId: menuId,
+    const handleSendMessage = async (e) => {
+        e.preventDefault();
+        if (newMessage.trim() === '' || !selectedConversation) return;
+        const messagesRef = collection(db, 'conversas', selectedConversation.id, 'messages');
+        await addDoc(messagesRef, {
+            text: newMessage,
+            senderId: currentUser.uid,
+            timestamp: serverTimestamp(),
         });
-
-        // Atualiza o estado local para refletir a mudança imediatamente na tela
-        setBar({ ...bar, activeMenuId: menuId });
-        alert('Cardápio ativado com sucesso!');
-      } catch (error) {
-        console.error("Erro ao ativar cardápio:", error);
-        alert('Não foi possível ativar o cardápio.');
-      }
+        const convDocRef = doc(db, 'conversas', selectedConversation.id);
+        await updateDoc(convDocRef, {
+            lastMessage: newMessage,
+            timestamp: serverTimestamp(),
+        });
+        setNewMessage('');
     };
 
     if (loading) {
@@ -100,50 +143,61 @@ export default function Dashboard() {
     }
 
     return (
-        <div>
-            <div className="header">
-                <h1>Painel de Gerenciamento: {bar?.nome}</h1>
-                <button onClick={handleLogout} className="logout-button">Sair</button>
-            </div>
-            
-            <div className="card">
-                <h2>Meus Cardápios</h2>
-                <form onSubmit={handleCreateMenu} className="inline-form">
-                    <input
-                        type="text"
-                        value={nomeNovoMenu}
-                        onChange={(e) => setNomeNovoMenu(e.target.value)}
-                        placeholder="Nome do novo cardápio (ex: Jantar)"
-                        required
-                    />
-                    <button type="submit">Criar Cardápio</button>
-                </form>
-
-                <div className="menu-selection-list">
-                  {menus.map(menu => (
-                    // A classe 'active' será adicionada se este for o cardápio ativo
-                    <div key={menu.id} className={`menu-list-item ${bar?.activeMenuId === menu.id ? 'active' : ''}`}>
-                      <span>{menu.nomeMenu}</span>
-                      <div className="button-group">
-                        {/* NOVO BOTÃO "ATIVAR" */}
-                        <button onClick={() => handleSetActiveMenu(menu.id)} disabled={bar?.activeMenuId === menu.id}>
-                          {bar?.activeMenuId === menu.id ? 'Ativo' : 'Ativar'}
-                        </button>
-                        <button onClick={() => setSelectedMenuId(menu.id)}>Gerenciar Itens</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            
-            {/* Se um cardápio estiver selecionado, mostra o gerenciador de itens */}
-            {selectedMenuId && (
-                 <div className="card">
-                    <h2>Gerenciando Itens do Cardápio: {menus.find(m => m.id === selectedMenuId)?.nomeMenu}</h2>
-                    {/* AQUI ESTÁ A MUDANÇA */}
-                    <ItemManager bar={bar} menuId={selectedMenuId} />
-                 </div>
-            )}
+    <div className="dashboard-layout">
+        <div className="sidebar">
+            <h2 className="sidebar-title">EiMosso Painel</h2>
+            <nav className="sidebar-nav">
+                <a onClick={() => setActiveView('profile')} className={activeView === 'profile' ? 'active' : ''}>Perfil e Horários</a>
+                <a onClick={() => setActiveView('menus')} className={activeView === 'menus' ? 'active' : ''}>Cardápios</a>
+                <a onClick={() => setActiveView('chat')} className={activeView === 'chat' ? 'active' : ''}>Chat</a>
+                <a onClick={() => setActiveView('account')} className={activeView === 'account' ? 'active' : ''}>Conta e Senha</a>
+            </nav>
+            <button onClick={handleLogout} className="logout-button-sidebar">Sair</button>
         </div>
-    );
-}
+
+        <main className="main-content">
+            {activeView === 'profile' && (
+                <>
+                    <BarProfileCard bar={bar} setBar={setBar} />
+                    <HorariosManager bar={bar} horarios={horarios} setHorarios={setHorarios} />
+                </>
+            )}
+
+            {activeView === 'menus' && (
+                <>
+                    <MenuManager 
+                        menus={menus} 
+                        bar={bar} 
+                        handleCreateMenu={handleCreateMenu}
+                        nomeNovoMenu={nomeNovoMenu}
+                        setNomeNovoMenu={setNomeNovoMenu}
+                        handleSetActiveMenu={handleSetActiveMenu}
+                        setSelectedMenuId={setSelectedMenuId}
+                    />
+                    {selectedMenuId && (
+                        <div className="card">
+                            <h2>Gerenciando Itens do Cardápio: {menus.find(m => m.id === selectedMenuId)?.nomeMenu}</h2>
+                            <ItemManager bar={bar} menuId={selectedMenuId} />
+                        </div>
+                    )}
+                </>
+            )}
+
+            {activeView === 'chat' && (
+                <ChatManager 
+                    conversations={conversations}
+                    selectedConversation={selectedConversation}
+                    setSelectedConversation={setSelectedConversation}
+                    messages={messages}
+                    currentUser={currentUser}
+                    handleSendMessage={handleSendMessage}
+                    newMessage={newMessage}
+                    setNewMessage={setNewMessage}
+                />
+            )}
+
+            {activeView === 'account' && <PasswordManager />}
+        </main>
+    </div>
+    )
+};
