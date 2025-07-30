@@ -324,3 +324,56 @@ button:disabled {
   height: 100%;
   color: #aaa;
 }
+
+/* Pedidos */
+.pedidos-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.pedido-card {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+}
+.pedido-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #e9ecef;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #dee2e6;
+}
+.pedido-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.pedido-body {
+  padding: 1rem;
+}
+.pedido-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+.item-qnt {
+  font-weight: bold;
+  margin-right: 0.75rem;
+}
+.item-details {
+  display: flex;
+  flex-direction: column;
+}
+.item-name {
+  font-weight: 500;
+}
+.item-obs {
+  font-style: italic;
+  color: #6c757d;
+}
+.pedido-footer {
+  padding: 0.75rem 1rem;
+  text-align: right;
+  font-size: 1.1rem;
+  border-top: 1px solid #dee2e6;
+}

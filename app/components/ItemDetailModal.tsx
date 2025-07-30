@@ -2,18 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { useOrder } from '../context/OrderContext';
 
-export default function ItemDetailModal({ item, visible, onClose }) {
+interface MenuItem {
+  id: string;
+  nomeItem: string;
+  preco: number;
+  descricao: string;
+  disponivel: boolean;
+}
+
+interface ItemDetailModalProps {
+  item: MenuItem | null; // O item pode ser nulo quando o modal não está focado em um item específico
+  visible: boolean;
+  onClose: () => void;
+}
+
+// --- Aplicando a Interface de Props ---
+export default function ItemDetailModal({ item, visible, onClose }: ItemDetailModalProps) {
   const [quantity, setQuantity] = useState(1);
   const [observation, setObservation] = useState('');
   const { addItemToOrder } = useOrder();
 
-  // Reinicia a quantidade para 1 toda vez que um novo item é selecionado
   useEffect(() => {
     if (visible) {
       setQuantity(1);
       setObservation('');
     }
-  }, [visible]);
+  }, [visible, item]); // Adicionado 'item' ao array de dependências
 
   if (!item) return null;
 
@@ -25,7 +39,7 @@ export default function ItemDetailModal({ item, visible, onClose }) {
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.modalBackdrop}>
-        <TouchableOpacity style={styles.backdrop} onPress={onClose} />
+        <TouchableOpacity style={styles.backdrop} onPress={onClose} activeOpacity={1} />
         <View style={styles.modalContent}>
           <Text style={styles.itemName}>{item.nomeItem}</Text>
           <Text style={styles.itemDescription}>{item.descricao}</Text>

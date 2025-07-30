@@ -1,86 +1,55 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-// Importa a função de criação de usuário do Firebase Auth
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-// Importa nossa instância de autenticação que configuramos anteriormente
-import { auth } from '../../firebaseConfig';
-// O Link permite navegar para outras telas
-import { Link, router } from 'expo-router';
+import React from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { Link } from 'expo-router';
+import { useAuthForm } from '../../hooks/useAuthForm'; // Nosso novo hook!
 
 export default function SignUpScreen() {
-  // Criamos "estados" para armazenar o que o usuário digita.
-  // Começam como strings vazias.
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const {
+    email,
+    setEmail,
+    password,
+    setPassword,
+    confirmPassword,
+    setConfirmPassword,
+    loading,
+    handleSignUp,
+  } = useAuthForm();
 
-  // Esta é a função que será chamada quando o botão de cadastro for pressionado.
-  const handleSignUp = async () => {
-    // 1. Validação simples: verifica se as senhas coincidem.
-    if (password !== confirmPassword) {
-      Alert.alert("Erro", "As senhas não coincidem!");
-      return;
-    }
-
-    // 2. Tenta criar o usuário no Firebase
-    try {
-      // Usamos a função do Firebase, passando o 'auth', o email e a senha.
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
-      // Se der certo, o usuário é criado.
-      console.log('Usuário criado com sucesso!', userCredential.user.email);
-      Alert.alert('Sucesso!', 'Sua conta foi criada.');
-
-      // Opcional: Redireciona o usuário para a tela inicial após o cadastro.
-      router.replace('/'); // A função 'replace' substitui a tela atual pela nova.
-
-    } catch (error: any) {
-      // 3. Se ocorrer um erro (ex: e-mail já em uso, senha fraca), ele cairá aqui.
-      console.error('Erro no cadastro:', error.message);
-      // Mostra um alerta com a mensagem de erro do Firebase para o usuário.
-      Alert.alert('Erro no Cadastro', error.message);
-    }
-  };
-
-  // 4. A parte visual da tela (componentes)
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Crie sua Conta</Text>
 
-      {/* Campo de entrada para o E-mail */}
       <TextInput
         style={styles.input}
         placeholder="E-mail"
         value={email}
-        onChangeText={setEmail} // A cada letra digitada, atualiza o estado 'email'.
+        onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
       />
-
-      {/* Campo de entrada para a Senha */}
       <TextInput
         style={styles.input}
         placeholder="Senha"
         value={password}
-        onChangeText={setPassword} // Atualiza o estado 'password'.
-        secureTextEntry // Esconde os caracteres da senha.
+        onChangeText={setPassword}
+        secureTextEntry
       />
-
-      {/* Campo de entrada para confirmar a Senha */}
       <TextInput
         style={styles.input}
         placeholder="Confirme a Senha"
         value={confirmPassword}
-        onChangeText={setConfirmPassword} // Atualiza o estado 'confirmPassword'.
+        onChangeText={setConfirmPassword}
         secureTextEntry
       />
 
-      {/* Botão para chamar a função de cadastro */}
-      <TouchableOpacity style={styles.button} onPress={handleSignUp}>
-        <Text style={styles.buttonText}>Cadastrar</Text>
+      <TouchableOpacity style={styles.button} onPress={handleSignUp} disabled={loading}>
+        {loading ? (
+          <ActivityIndicator color="white" />
+        ) : (
+          <Text style={styles.buttonText}>Cadastrar</Text>
+        )}
       </TouchableOpacity>
 
-      {/* Link para a tela de Login (que criaremos a seguir) */}
       <Link href="/login" style={styles.link}>
         <Text>Já tem uma conta? Faça Login</Text>
       </Link>
@@ -88,7 +57,6 @@ export default function SignUpScreen() {
   );
 }
 
-// 5. Folha de estilos para organizar a aparência da tela.
 const styles = StyleSheet.create({
   container: {
     flex: 1,

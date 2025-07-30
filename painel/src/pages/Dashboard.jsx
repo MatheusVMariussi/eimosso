@@ -12,6 +12,7 @@ import MenuManager from '../components/dashboard/MenuManager';
 import ItemManager from '../components/ItemManager';
 import PasswordManager from '../components/dashboard/PasswordManager';
 import ChatManager from '../components/dashboard/ChatManager';
+import PedidosManager from '../components/dashboard/PedidosManager';
 
 const initialHorarios = {
     segunda: null, terca: null, quarta: null, quinta: null, sexta: null, sabado: null, domingo: null,
@@ -149,6 +150,7 @@ export default function Dashboard() {
             <nav className="sidebar-nav">
                 <a onClick={() => setActiveView('profile')} className={activeView === 'profile' ? 'active' : ''}>Perfil e Horários</a>
                 <a onClick={() => setActiveView('menus')} className={activeView === 'menus' ? 'active' : ''}>Cardápios</a>
+                <a onClick={() => setActiveView('pedidos')} className={activeView === 'pedidos' ? 'active' : ''}>Pedidos</a>
                 <a onClick={() => setActiveView('chat')} className={activeView === 'chat' ? 'active' : ''}>Chat</a>
                 <a onClick={() => setActiveView('account')} className={activeView === 'account' ? 'active' : ''}>Conta e Senha</a>
             </nav>
@@ -181,6 +183,13 @@ export default function Dashboard() {
                         </div>
                     )}
                 </>
+            )}
+
+            {activeView === 'pedidos' && (
+            <div className="card">
+                <h2>Pedidos Recebidos</h2>
+                <PedidosManager bar={bar} />
+            </div>
             )}
 
             {activeView === 'chat' && (

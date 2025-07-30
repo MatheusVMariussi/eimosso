@@ -1,33 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
-import { onSnapshot, collection, query, where } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
-import { useAuth } from '@/context/AuthContext';
+import React from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Link } from 'expo-router';
+import { useConversations, Conversation } from '../../../hooks/useConversations'; // Importando o hook e o tipo
+
+const ConversationItem = ({ item }: { item: Conversation }) => (
+  <Link href={`/chat/${item.id}`} asChild>
+    <TouchableOpacity style={styles.chatItem}>
+      <Text style={styles.chatName}>{item.barName}</Text>
+      <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessage}</Text>
+    </TouchableOpacity>
+  </Link>
+);
 
 export default function SocialScreen() {
-  const { user } = useAuth();
-  const [conversations, setConversations] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const convRef = collection(db, 'conversas');
-    const q = query(convRef, where('userId', '==', user.uid));
-
-    // onSnapshot cria um "ouvinte" que atualiza a lista automaticamente
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const convList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setConversations(convList);
-        setLoading(false);
-    });
-
-    return () => unsubscribe();
-}, [user]);
+  const { conversations, loading } = useConversations();
 
   if (loading) {
-    return <View><Text>Carregando conversas...</Text></View>;
+    return <ActivityIndicator style={styles.container} size="large" />;
   }
 
   return (
@@ -35,15 +24,7 @@ export default function SocialScreen() {
       <FlatList
         data={conversations}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          // Cada item da lista é um link para a tela de chat específica
-          <Link href={`/chat/${item.id}`} asChild>
-            <TouchableOpacity style={styles.chatItem}>
-              <Text style={styles.chatName}>{item.barName}</Text>
-              <Text style={styles.lastMessage}>{item.lastMessage}</Text>
-            </TouchableOpacity>
-          </Link>
-        )}
+        renderItem={({ item }) => <ConversationItem item={item} />}
         ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma conversa iniciada.</Text>}
       />
     </View>

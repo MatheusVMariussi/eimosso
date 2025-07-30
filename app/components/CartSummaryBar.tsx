@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useOrder } from '../context/OrderContext';
-import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function CartSummaryBar() {
-  const { currentOrder } = useOrder();
+  // Agora pegamos a função 'openCart' do contexto
+  const { currentOrder, openCart } = useOrder();
 
   if (currentOrder.length === 0) {
     return null;
@@ -16,18 +16,17 @@ export default function CartSummaryBar() {
 
   return (
     <View style={styles.container}>
-      <Link href="/pedidos" asChild>
-        <TouchableOpacity style={styles.touchable}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="cart" size={24} color="#007BFF" />
-            <View style={styles.badgeContainer}>
-              <Text style={styles.badgeText}>{totalItems}</Text>
-            </View>
+      {/* O onPress agora chama a função openCart */}
+      <TouchableOpacity style={styles.touchable} onPress={openCart}>
+        <View style={styles.iconContainer}>
+          <Ionicons name="cart" size={24} color="#007BFF" />
+          <View style={styles.badgeContainer}>
+            <Text style={styles.badgeText}>{totalItems}</Text>
           </View>
-          <Text style={styles.text}>Ver carrinho</Text>
-          <Text style={styles.total}>R$ {total.toFixed(2)}</Text>
-        </TouchableOpacity>
-      </Link>
+        </View>
+        <Text style={styles.text}>Ver carrinho</Text>
+        <Text style={styles.total}>R$ {total.toFixed(2)}</Text>
+      </TouchableOpacity>
     </View>
   );
 }

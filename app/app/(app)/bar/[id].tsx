@@ -1,14 +1,14 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ImageBackground } from 'react-native';
-import { doc, getDoc, collection, getDocs, query, where, addDoc } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
-import { useOrder } from '@/context/OrderContext';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import ItemDetailModal from '@/components/ItemDetailModal';
-import { useAuth } from '@/context/AuthContext';
+import { useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ImageBackground, Alert, FlatList } from 'react-native';
+import { useOrder } from '../../../context/OrderContext';
+import ParallaxScrollView from '../../../components/ParallaxScrollView';
+import ItemDetailModal from '../../../components/ItemDetailModal'; // Caminho atualizado
+import { useAuth } from '../../../context/AuthContext';
+import { useBarDetails } from '../../../hooks/useBarDetails'; // Nosso novo hook!
+import { initiateChat } from '../../../services/ChatService'; // Lógica de chat extraída
 
-// Interfaces
+// A interface MenuItem pode ser movida para um arquivo de tipos global (ex: types/index.ts)
 interface MenuItem {
   id: string;
   nomeItem: string;
@@ -16,112 +16,64 @@ interface MenuItem {
   descricao: string;
   disponivel: boolean;
 }
-interface Bar {
-  id: string;
-  nome: string;
-  endereco: string;
-  activeMenuId?: string;
-}
 
 export default function BarDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [bar, setBar] = useState<Bar | null>(null);
-  const [menu, setMenu] = useState<MenuItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { user } = useAuth();
+  
+  // O estado da UI permanece no componente
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
 
-  const { selectTable, scannedTable, activeBar } = useOrder();
-  const { user: currentUser } = useAuth();
-  const router = useRouter();
+  // Toda a lógica de dados agora vem do hook
+  const { bar, menu, loading, error } = useBarDetails(id);
+  
+  // A lógica de pedido e mesa vem do contexto, o que está correto
+  const { scannedTable, activeBar, leaveTable, selectTable } = useOrder();
 
-  // Busca os dados do bar e seu cardápio ativo
-  useEffect(() => {
-    const fetchBarAndActiveMenu = async () => {
-      if (!id) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const barDocRef = doc(db, 'bares', id);
-        const barDocSnap = await getDoc(barDocRef);
+  const handleInitiateChat = async () => {
+    if (!user || !bar) return;
+    const conversationId = await initiateChat(user, bar);
+    if (conversationId) {
+      Alert.alert("Chat Iniciado!", "Vá para a aba Social para conversar.");
+      router.push('/social');
+    } else {
+      Alert.alert("Erro", "Não foi possível iniciar a conversa.");
+    }
+  };
 
-        if (!barDocSnap.exists()) {
-          alert("Bar não encontrado.");
-          setLoading(false);
-          return;
-        }
-
-        const barData = { id: barDocSnap.id, ...barDocSnap.data() } as Bar;
-        setBar(barData);
-
-        if (barData.activeMenuId) {
-          const itemsRef = collection(db, 'bares', id, 'menus', barData.activeMenuId, 'items');
-          const itemsSnapshot = await getDocs(itemsRef);
-          
-          const menuList = itemsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          })) as MenuItem[];
-          
-          setMenu(menuList.filter(item => item.disponivel));
-        } else {
-          setMenu([]);
-        }
-      } catch (error) {
-        console.error("Erro ao buscar dados:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBarAndActiveMenu();
-  }, [id]);
-
-  // Abre o modal de detalhes do item
   const openModalForItem = (item: MenuItem) => {
     if (!scannedTable || activeBar !== id) {
-      alert("Para ver os detalhes de um item, primeiro escaneie o QR Code da sua mesa!");
+      Alert.alert("Atenção", "Para pedir, primeiro escaneie o QR Code da sua mesa.");
       return;
     }
     setSelectedItem(item);
     setModalVisible(true);
   };
 
-  // Inicia uma nova conversa ou navega para uma existente
-  const handleInitiateChat = async () => {
-    if (!currentUser || !bar) return;
-    try {
-      const conversasRef = collection(db, 'conversas');
-      const q = query(conversasRef, 
-        where("userId", "==", currentUser.uid),
-        where("barId", "==", bar.id)
+  const handleScanButtonPress = () => {
+    if (scannedTable && activeBar === id) {
+      Alert.alert(
+        `Você está na Mesa ${scannedTable}`,
+        "O que deseja fazer?",
+        [
+          { text: "Sair da Mesa", onPress: () => leaveTable(), style: "destructive" },
+          { text: "Trocar de Mesa", onPress: () => router.push(`/scanner?barId=${id}`) },
+          { text: "Fechar", style: "cancel" },
+        ]
       );
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        const conversationId = querySnapshot.docs[0].id;
-        router.push(`/chat/${conversationId}`);
-      } else {
-        const newConversation = {
-          userId: currentUser.uid,
-          userName: currentUser.displayName || currentUser.email,
-          barId: bar.id,
-          barName: bar.nome,
-          lastMessage: "Conversa iniciada...",
-          timestamp: new Date(),
-        };
-        const docRef = await addDoc(conversasRef, newConversation);
-        router.push(`/chat/${docRef.id}`);
-      }
-    } catch (error) {
-      console.error("Erro ao iniciar chat:", error);
-      alert("Não foi possível iniciar a conversa.");
+    } else {
+      router.push(`/scanner?barId=${id}`);
     }
   };
 
   if (loading) {
-    return <ActivityIndicator style={{ flex: 1, justifyContent: 'center' }} size="large" />;
+    return <ActivityIndicator style={styles.center} size="large" />;
+  }
+  
+  if (error) {
+    return <View style={styles.center}><Text>{error}</Text></View>;
   }
 
   return (
@@ -131,7 +83,7 @@ export default function BarDetailsScreen() {
         headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
         headerImage={
           <ImageBackground
-            source={{ uri: `https://via.placeholder.com/400x180.png/007BFF/FFFFFF?Text=${bar?.nome}` }}
+            source={{ uri: bar?.bannerUrl || `https://via.placeholder.com/400x180.png/007BFF/FFFFFF?Text=${bar?.nome}` }}
             style={styles.headerImage}
           >
             <View style={styles.headerOverlay}>
@@ -139,35 +91,37 @@ export default function BarDetailsScreen() {
             </View>
           </ImageBackground>
         }>
+        
         <View style={styles.contentContainer}>
           <Text style={styles.address}>{bar?.endereco}</Text>
-          <TouchableOpacity 
-            style={styles.scanButton} 
-            onPress={() => selectTable(id, '15')}
-          >
+          
+          <TouchableOpacity style={styles.scanButton} onPress={handleScanButtonPress}>
             <Text style={styles.buttonText}>
-              {scannedTable && activeBar === id ? `Você está na Mesa 15` : 'Simular Scan da Mesa'}
+              {scannedTable && activeBar === id ? `Mesa ${scannedTable}` : 'Escanear QR Code da Mesa'}
             </Text>
           </TouchableOpacity>
+          
           <TouchableOpacity style={styles.chatButton} onPress={handleInitiateChat}>
             <Text style={styles.buttonText}>Fale com o Bar</Text>
           </TouchableOpacity>
-          <Text style={styles.menuTitle}>Cardápio Ativo</Text>
-
-          {menu.map(item => (
-            <TouchableOpacity key={item.id} style={styles.menuItem} onPress={() => openModalForItem(item)}>
-              <View style={styles.menuItemInfo}>
-                <Text style={styles.itemName}>{item.nomeItem}</Text>
-                {item.descricao && <Text style={styles.itemDescription}>{item.descricao}</Text>}
-              </View>
-              <Text style={styles.itemPrice}>R$ {item.preco.toFixed(2)}</Text>
-            </TouchableOpacity>
-          ))}
-          {menu.length === 0 && (
-            <Text style={styles.emptyText}>
-              {bar?.activeMenuId ? 'Nenhum item disponível.' : 'Nenhum cardápio ativo.'}
-            </Text>
-          )}
+          
+          <Text style={styles.menuTitle}>Cardápio</Text>
+          
+          <FlatList
+            data={menu}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={styles.menuItem} onPress={() => openModalForItem(item)}>
+                <View style={styles.menuItemInfo}>
+                  <Text style={styles.itemName}>{item.nomeItem}</Text>
+                  {item.descricao && <Text style={styles.itemDescription}>{item.descricao}</Text>}
+                </View>
+                <Text style={styles.itemPrice}>R$ {item.preco.toFixed(2)}</Text>
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={<Text style={styles.emptyText}>Nenhum item disponível neste cardápio.</Text>}
+            scrollEnabled={false} // A rolagem principal é do ParallaxScrollView
+          />
         </View>
       </ParallaxScrollView>
 
@@ -180,7 +134,10 @@ export default function BarDetailsScreen() {
   );
 }
 
+// Os estilos permanecem os mesmos, adicionei apenas um para centralizar o loading/erro
 const styles = StyleSheet.create({
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  // ... (resto dos seus estilos)
   headerImage: { width: '100%', height: 180 },
   headerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', padding: 16 },
   headerTitle: { fontSize: 28, fontWeight: 'bold', color: 'white' },

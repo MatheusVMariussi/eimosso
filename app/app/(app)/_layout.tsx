@@ -3,28 +3,32 @@ import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { View } from 'react-native';
 import CartSummaryBar from '../../components/CartSummaryBar';
+import CartModal from '../../components/CartModal';
+import { useOrder } from '../../context/OrderContext';
 
 export default function AppLayout() {
   const { user } = useAuth();
+  const { isCartVisible, closeCart } = useOrder();
+
   if (!user) return <Redirect href="/login" />;
 
   return (
     <View style={{ flex: 1 }}>
       <Stack>
         <Stack.Screen 
-          name="(tabs)" // Aponta para o layout que controla a barra de abas
+          name="(tabs)" // Esta tela aponta para o nosso layout que define as abas
           options={{ headerShown: false }} 
         />
         <Stack.Screen 
-          name="bar/[id]" // Tela de detalhes do bar
-          options={{ presentation: 'modal', title: 'Detalhes do Bar' }} 
-        />
-        <Stack.Screen 
-          name="chat/[id]" // Tela de uma conversa
-          options={{ title: 'Chat' }} // Abre como uma tela normal, por cima das abas
+          name="scanner" // A tela do scanner é uma tela de nível superior nesta pilha
+          options={{ 
+            presentation: 'modal', 
+            title: 'Escanear QR Code da Mesa' 
+          }} 
         />
       </Stack>
       <CartSummaryBar />
+      <CartModal visible={isCartVisible} onClose={closeCart} />
     </View>
   );
 }
