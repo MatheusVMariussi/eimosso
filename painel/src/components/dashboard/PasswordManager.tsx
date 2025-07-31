@@ -7,14 +7,20 @@ export default function PasswordManager() {
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [confirmaNovaSenha, setConfirmaNovaSenha] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleChangePassword = async (e) => {
+  const handleChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!currentUser) return;
+
     if (novaSenha !== confirmaNovaSenha) {
       alert("As senhas não coincidem.");
       return;
     }
-    const credential = EmailAuthProvider.credential(currentUser.email, senhaAtual);
+    
+    setLoading(true);
+    const credential = EmailAuthProvider.credential(currentUser.email!, senhaAtual);
+    
     try {
       await reauthenticateWithCredential(currentUser, credential);
       await updatePassword(currentUser, novaSenha);
@@ -24,6 +30,9 @@ export default function PasswordManager() {
       setConfirmaNovaSenha('');
     } catch (error) {
       alert("Erro ao alterar a senha. Verifique se sua senha atual está correta.");
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -43,7 +52,9 @@ export default function PasswordManager() {
           <label>Confirmar Nova Senha</label>
           <input type="password" value={confirmaNovaSenha} onChange={(e) => setConfirmaNovaSenha(e.target.value)} required />
         </div>
-        <button type="submit">Alterar Senha</button>
+        <button type="submit" disabled={loading}>
+          {loading ? 'Alterando...' : 'Alterar Senha'}
+        </button>
       </form>
     </div>
   );

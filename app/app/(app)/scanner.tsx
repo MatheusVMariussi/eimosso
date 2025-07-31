@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Text, View, StyleSheet, Button, Alert } from 'react-native';
+import { Text, View, StyleSheet, Alert } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useOrder } from '../../context/OrderContext';
@@ -7,7 +7,7 @@ import { useOrder } from '../../context/OrderContext';
 export default function ScannerScreen() {
   const { barId: expectedBarId } = useLocalSearchParams<{ barId: string }>();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [scanned, setScanned] = useState(false); // <-- A LINHA QUE FALTAVA
+  const [scanned, setScanned] = useState(false);
   const router = useRouter();
   const { selectTable } = useOrder();
 
@@ -28,21 +28,31 @@ export default function ScannerScreen() {
         const [key, value] = part.split('=');
         if (key && value) acc[key] = value;
         return acc;
-      }, {});
+      }, {} as Record<string, string>);
 
       const scannedBarId = params.barId;
       const scannedTable = params.table;
 
       if (scannedBarId && scannedTable && scannedBarId === expectedBarId) {
+        // Primeiro, atualizamos o estado
         selectTable(scannedBarId, scannedTable);
-        router.back();
+
+        // --- A CORREÇÃO ESTÁ AQUI ---
+        // Agendamos a navegação para o próximo frame, garantindo que o estado tenha se propagado
+        requestAnimationFrame(() => {
+          if (router.canGoBack()) {
+            router.back();
+          }
+        });
+        
       } else {
         throw new Error("QR Code inválido ou não pertence a este bar.");
       }
-    } catch (error) {
+    } catch (error: any) {
       Alert.alert(
         'Erro de Leitura',
         error.message || 'Não foi possível ler o QR Code.',
+        // Permite que o usuário tente escanear novamente
         [{ text: 'OK', onPress: () => setScanned(false) }] 
       );
     }
@@ -67,12 +77,6 @@ export default function ScannerScreen() {
         <View style={styles.overlay}>
           <Text style={styles.overlayText}>Aponte para o QR Code da mesa</Text>
           <View style={styles.scanBox} />
-        </View>
-      )}
-
-      {scanned && !hasPermission && (
-        <View style={styles.buttonContainer}>
-          <Button title={'Escanear Novamente'} onPress={() => setScanned(false)} />
         </View>
       )}
     </View>

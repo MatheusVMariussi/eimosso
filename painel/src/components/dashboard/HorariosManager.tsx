@@ -1,49 +1,50 @@
 import React from 'react';
 import Slider from 'rc-slider';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../firebaseConfig';
+import 'rc-slider/assets/index.css'; // Importar o CSS do slider é uma boa prática
+import { Horarios } from '../../hooks/useHorarios';
 
-const formatTime = (minutes) => {
+const formatTime = (minutes: number | null): string => {
     if (minutes === null) return "Fechado";
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
 
-export default function HorariosManager({ bar, horarios, setHorarios }) {
+interface HorariosManagerProps {
+  horarios: Horarios;
+  setHorarios: React.Dispatch<React.SetStateAction<Horarios>>;
+  onSave: () => void;
+}
 
-  const handleHorarioChange = (dia, valor) => {
-    setHorarios(prev => ({ ...prev, [dia]: valor }));
+export default function HorariosManager({ horarios, setHorarios, onSave }: HorariosManagerProps) {
+
+  // Garantimos que 'dia' é uma chave válida da nossa interface Horarios
+  const handleHorarioChange = (dia: keyof Horarios, valor: number | number[]) => {
+    setHorarios(prev => ({ ...prev, [dia]: valor as [number, number] }));
   };
 
-  const handleToggleFechado = (dia) => {
+  const handleToggleFechado = (dia: keyof Horarios) => {
     const novoValor = horarios[dia] === null ? [1080, 1380] : null;
     setHorarios(prev => ({ ...prev, [dia]: novoValor }));
   };
 
-  const handleSaveHorarios = async (e) => {
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!bar) return;
-    try {
-      const barDocRef = doc(db, 'bares', bar.id);
-      await updateDoc(barDocRef, { horarios: horarios });
-      alert('Horários de funcionamento salvos com sucesso!');
-    } catch (error) {
-      console.error("Erro ao salvar horários: ", error);
-    }
+    onSave();
   };
 
   return (
     <div className="card">
       <h3>Horário de Funcionamento</h3>
-      <form onSubmit={handleSaveHorarios}>
+      <form onSubmit={handleFormSubmit}>
         <div className="horarios-container">
-          {Object.keys(horarios).map((dia) => (
+          {/* Aqui, informamos ao TypeScript que as chaves são do tipo 'keyof Horarios' */}
+          {(Object.keys(horarios) as Array<keyof Horarios>).map((dia) => (
             <div className="horario-dia" key={dia}>
               <div className="dia-header">
                 <label style={{textTransform: 'capitalize'}}>{dia}</label>
                 <div className='dia-info'>
-                  <span>{horarios[dia] ? `${formatTime(horarios[dia][0])} - ${formatTime(horarios[dia][1])}` : 'Fechado'}</span>
+                  <span>{horarios[dia] ? `${formatTime(horarios[dia]![0])} - ${formatTime(horarios[dia]![1])}` : 'Fechado'}</span>
                   <button type="button" onClick={() => handleToggleFechado(dia)} className="toggle-fechado">
                     {horarios[dia] ? 'Fechar' : 'Abrir'}
                   </button>

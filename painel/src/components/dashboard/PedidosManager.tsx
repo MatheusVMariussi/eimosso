@@ -1,35 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { db } from '../../firebaseConfig';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import React from 'react';
+import { usePedidos, Pedido } from '../../hooks/usePedidos'; // Importa o hook
+import { Bar } from '../../hooks/useBarData';
 
-export default function PedidosManager({ bar }) {
-  const [pedidos, setPedidos] = useState([]);
-  const [loading, setLoading] = useState(true);
+interface PedidosManagerProps {
+  bar: Bar | null;
+}
 
-  // Efeito para buscar os pedidos em tempo real
-  useEffect(() => {
-    if (!bar) return;
-
-    // Cria uma consulta que busca na coleção 'pedidos':
-    // 1. Onde o 'barId' é igual ao ID do bar logado.
-    // 2. E ordena os resultados pelo mais recente primeiro.
-    const pedidosRef = collection(db, "pedidos");
-    const q = query(pedidosRef, where("barId", "==", bar.id), orderBy("timestamp", "desc"));
-
-    // onSnapshot "ouve" as mudanças na consulta em tempo real.
-    // Toda vez que um novo pedido é adicionado, este código executa novamente.
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const pedidosList = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setPedidos(pedidosList);
-      setLoading(false);
-    });
-
-    // Limpa o "ouvinte" quando o componente não está mais na tela
-    return () => unsubscribe();
-  }, [bar]); // Roda a busca sempre que a informação do bar mudar
+export default function PedidosManager({ bar }: PedidosManagerProps) {
+  const { pedidos, loading } = usePedidos(bar); // Usa o hook
 
   if (loading) {
     return <p>Aguardando novos pedidos...</p>;
